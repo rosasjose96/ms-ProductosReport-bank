@@ -1,5 +1,8 @@
 package com.bootcamp.msProductosReport.handler;
 
+import com.bootcamp.msProductosReport.models.dto.Credit;
+import com.bootcamp.msProductosReport.models.dto.Creditcard;
+import com.bootcamp.msProductosReport.models.dto.CustomerDTO;
 import com.bootcamp.msProductosReport.models.dto.Producto;
 import com.bootcamp.msProductosReport.models.entities.Productreport;
 import com.bootcamp.msProductosReport.services.IProductreportService;
@@ -23,69 +26,53 @@ public class ProductreportHandler {
     @Autowired
     private IProductreportService service;
 
-    public Mono<ServerResponse> findReportById(ServerRequest request){
-        return service.findById(request.pathVariable("id"))
-                .flatMap(report -> ServerResponse.ok()
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(BodyInserters.fromValue(report)))
-                .switchIfEmpty(ServerResponse.notFound().build());
-    }
-
-    public Mono<ServerResponse> findAllReports(ServerRequest request){
-        return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON)
-                .body(service.findAll(), Productreport.class);
-    }
-
-    public Mono<ServerResponse> findByAccountNumber(ServerRequest request) {
+    public Mono<ServerResponse> generateReportCustomer(ServerRequest request) {
+        Productreport reportProduct = new Productreport();
         String customerIdentityNumber = request.pathVariable("customerIdentityNumber");
         LOGGER.info("El customerIdentityNumber es " + customerIdentityNumber);
-        return service.findByCustomer_CustomerIdentityNumber(customerIdentityNumber)
+        return Mono.just(reportProduct).flatMap(report -> service.getCustomer(customerIdentityNumber)
+                        .flatMap(customer -> {
+                            reportProduct.setCustomer(CustomerDTO.builder()
+                                    .name(customer.getName()).code(customer.getCustomerType().getCode())
+                                    .customerIdentityNumber(customer.getCustomerIdentityNumber()).build());
+                            return service.getSavingAccount(customerIdentityNumber);
+                        }).flatMap(savingAccount -> {
+                            if(savingAccount.getAccountNumber()!= null) {
+                                reportProduct.getProductos().add(savingAccount);
+                            }
+                            return service.getFixedTermAccount(customerIdentityNumber);
+                         }).flatMap(fixedtermaccount -> {
+                            if(fixedtermaccount.getAccountNumber()!= null) {
+                                reportProduct.getProductos().add(fixedtermaccount);
+                            }
+                            return service.getCurrentAccount(customerIdentityNumber).collectList();
+                        }).flatMap(currentaccount -> {
+                            if(currentaccount.get(0).getAccountNumber()!= null) {
+                                reportProduct.getProductos().add(currentaccount);
+                            }
+                            return service.getCreditCard(customerIdentityNumber);
+                        }).flatMap(creditcard -> {
+                            if(creditcard.getPan()!= null) {
+                                creditcard.setTypeOfAccount("CREDITCARD");
+                                reportProduct.getProductos().add(creditcard);
+                            }
+                            return service.getCredit(customerIdentityNumber).collect(Collectors.toList());
+                        })
+                        .flatMap(credit -> {
+                            if(credit.get(0).getContractNumber() != null) {
+                                credit.stream().forEach(creditObjet -> {
+                                    creditObjet.setTypeOfAccount("CREDIT");
+                                });
+
+                                reportProduct.getProductos().add(credit);
+                            }
+
+                            return Mono.just(reportProduct);
+                        }))
                         .flatMap(c -> ServerResponse
                         .ok()
                         .contentType(MediaType.APPLICATION_JSON)
                         .body(BodyInserters.fromValue(c)))
-                .switchIfEmpty(ServerResponse.notFound().build());
-    }
-
-    public Mono<ServerResponse> newReport(ServerRequest request){
-
-        Mono<Productreport> productreportMono = request.bodyToMono(Productreport.class);
-
-        return productreportMono.flatMap( Request -> service.create(Request))
-                .flatMap( c -> ServerResponse
-                        .ok()
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .body(BodyInserters.fromValue(c)));
-    }
-
-    public Mono<ServerResponse> updateProductReport(ServerRequest request){
-        Mono<Productreport> productreportMono = request.bodyToMono(Productreport.class);
-        String customerIdentityNumber = request.pathVariable("customerIdentityNumber");
-
-        return service.findByCustomer_CustomerIdentityNumber(customerIdentityNumber)
-                .zipWith(productreportMono, (db,req) -> {
-                    db.setProducto(req.getProducto());
-                    return db;
-                }).flatMap( c -> ServerResponse
-                        .ok()
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .body(service.update(c),Productreport.class))
-                .switchIfEmpty(ServerResponse.notFound().build());
-    }
-
-    public Mono<ServerResponse> deleteProductFromReport(ServerRequest request){
-
-        String customerIdentityNumber = request.pathVariable("customerIdentityNumber");
-        String accountNumber = request.pathVariable("accountNumber");
-
-        return service.findByCustomer_CustomerIdentityNumber(customerIdentityNumber)
-                .flatMap(customerReport -> {
-                   Producto producto = customerReport.getProducto().stream()
-                            .filter(product -> product.getAccountNumber().equals(accountNumber))
-                           .collect(Collectors.toList()).get(0);
-                    customerReport.getProducto().remove(producto);
-                   return Mono.just(customerReport);
-                }).then(ServerResponse.noContent().build())
                 .switchIfEmpty(ServerResponse.notFound().build());
     }
 

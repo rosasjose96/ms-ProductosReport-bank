@@ -6,16 +6,14 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * The type Customer.
+ * The DTO of Customer.
  */
 @Data
 @Builder
-@AllArgsConstructor
 @NoArgsConstructor
-public class Customer {
-
+@AllArgsConstructor
+public class CustomerDTO {
     private String name;
-    private String customerIdentityType;
+    private String code;
     private String customerIdentityNumber;
-    private CustomerType customerType;
 }

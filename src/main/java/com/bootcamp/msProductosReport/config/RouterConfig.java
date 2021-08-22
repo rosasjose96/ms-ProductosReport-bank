@@ -24,12 +24,7 @@ public class RouterConfig {
     @Bean
     public RouterFunction<ServerResponse> routes(ProductreportHandler productreportHandler){
 
-        return route(GET("/api/report"), productreportHandler::findAllReports)
-                .andRoute(GET("/api/report/customer/{customerIdentityNumber}"), productreportHandler::findByAccountNumber)
-                .andRoute(GET("/api/report/{id}"), productreportHandler::findReportById)
-                .andRoute(POST("/api/report"), productreportHandler::newReport)
-                .andRoute(PUT("/api/report/{customerIdentityNumber}"), productreportHandler::updateProductReport)
-                .andRoute(DELETE("/api/report/{customerIdentityNumber}/{accountNumber}"), productreportHandler::deleteProductFromReport);
+        return route(GET("/api/report/customer/{customerIdentityNumber}"), productreportHandler::generateReportCustomer);
 
     }
 }
