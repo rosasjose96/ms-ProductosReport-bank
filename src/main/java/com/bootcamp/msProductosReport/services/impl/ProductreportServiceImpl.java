@@ -73,7 +73,7 @@ public class ProductreportServiceImpl implements IProductreportService {
         Map<String, Object> params = new HashMap<>();
         LOGGER.info("Searching FixedTermAccount by: {}" + customerIdentityNumber);
         params.put("customerIdentityNumber", customerIdentityNumber);
-        return webClientBuilder.baseUrl("http://FIXEDTERMACCOUND-SERVICE/api/fixedTermAccound")
+        return webClientBuilder.baseUrl("http://FIXEDTERMACCOUNT-SERVICE/api/fixedTermAccound")
                 .build()
                 .get()
                 .uri("/{customerIdentityNumber}", customerIdentityNumber)
